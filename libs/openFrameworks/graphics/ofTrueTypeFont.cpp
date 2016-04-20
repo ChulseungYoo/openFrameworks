@@ -1218,9 +1218,12 @@ float ofTrueTypeFont::stringHeight(const std::string& c) const{
 
 //-----------------------------------------------------------
 void ofTrueTypeFont::createStringMesh(const std::string& str, float x, float y, bool vflip) const{
-	iterateString(str,x,y,vflip,[&](uint32_t c, ofVec2f pos){
-		drawChar(c, pos.x, pos.y, vflip);
-	});
+	if (!str.empty())
+	{
+		iterateString(str, x, y, vflip, [&](uint32_t c, ofVec2f pos) {
+			drawChar(c, pos.x, pos.y, vflip);
+		});
+	}
 }
 
 //-----------------------------------------------------------
