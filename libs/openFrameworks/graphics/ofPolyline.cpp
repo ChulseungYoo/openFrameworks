@@ -26,6 +26,13 @@ ofPolyline ofPolyline::fromRectangle(const ofRectangle& rect) {
 }
 
 //----------------------------------------------------------
+ofPolyline ofPolyline::fromCircle(const ofPoint center, float r, int resolution) {
+	ofPolyline polyline;
+	polyline.arc(center, r, r, 0, 360, resolution);
+	return polyline;
+}
+
+//----------------------------------------------------------
 void ofPolyline::clear() {
 	setClosed(false);
 	points.clear();
@@ -88,6 +95,15 @@ const ofPoint& ofPolyline::operator[] (int index) const {
 ofPoint& ofPolyline::operator[] (int index) {
     flagHasChanged();
 	return points[index];
+}
+
+ofPolyline ofPolyline::operator* (float scale) {
+	ofPolyline retVal;
+	for (auto vertex : getVertices())
+	{
+		retVal.addVertex(vertex * scale);
+	}
+	return retVal;
 }
 
 //----------------------------------------------------------

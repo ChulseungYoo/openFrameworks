@@ -61,6 +61,7 @@ public:
 	ofPolyline(const vector<ofPoint>& verts);
 
     static ofPolyline fromRectangle(const ofRectangle& rect);
+	static ofPolyline fromCircle(const ofPoint center, float r, int resolution);
 
     /// \}
     /// \name Add and Remove Vertices
@@ -129,7 +130,7 @@ public:
 	/// ~~~~
 	const ofPoint& operator[] (int index) const;
 	ofPoint& operator[] (int index);
-    
+	ofPolyline operator* (float scale);
 	/// \brief Gets a vector of vertices that the line contains
 	vector<ofPoint> & getVertices();
 	const vector<ofPoint> & getVertices() const;
