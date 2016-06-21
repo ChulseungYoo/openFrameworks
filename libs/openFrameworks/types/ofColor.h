@@ -585,7 +585,7 @@ public:
     /// ~~~~
     ///
     /// The list of colors is based upon the CSS names colors and can be viewed
-    /// [here](http://www.w3schools.com/cssref/css_colornames.asp).
+    /// [here](http://www.w3schools.com/colors/colors_names.asp).
     ///
     /// \{
 
