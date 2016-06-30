@@ -254,8 +254,48 @@ string ofGetLogLevelName(ofLogLevel level, bool pad){
 void ofConsoleLoggerChannel::log(ofLogLevel level, const string & module, const string & message){
 	// print to cerr for OF_LOG_ERROR and OF_LOG_FATAL_ERROR, everything else to cout 
 	ostream& out = level < OF_LOG_ERROR ? cout : cerr;
+#ifdef _WIN32 || _WIN64
+	HANDLE hConsole;
+	hConsole = GetStdHandle(level < OF_LOG_ERROR ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+	/*
+	bit 0 - foreground blue
+	bit 1 - foreground green
+	bit 2 - foreground red
+	bit 3 - foreground intensity
+
+	bit 4 - background blue
+	bit 5 - background green
+	bit 6 - background red
+	bit 7 - background intensity
+	*/
+	switch (level)
+	{
+	case OF_LOG_VERBOSE:
+		SetConsoleTextAttribute(hConsole, 15);
+		break;
+	case OF_LOG_NOTICE:
+		SetConsoleTextAttribute(hConsole, 11);
+		break;
+	case OF_LOG_WARNING:
+		SetConsoleTextAttribute(hConsole, 14);
+		break;
+	case OF_LOG_ERROR:
+		SetConsoleTextAttribute(hConsole, 12);
+		break;
+	case OF_LOG_FATAL_ERROR:
+		SetConsoleTextAttribute(hConsole, 192);
+		break;
+	case OF_LOG_SILENT:
+		break;
+	default:
+		break;
+	}
+#endif
 	out << "[" << ofGetLogLevelName(level, true)  << "] ";
 	// only print the module name if it's not ""
+#ifdef _WIN32 || _WIN64
+	SetConsoleTextAttribute(hConsole, 15);
+#endif
 	if(module != ""){
 		out << module << ": ";
 	}
@@ -272,11 +312,78 @@ void ofConsoleLoggerChannel::log(ofLogLevel level, const string & module, const 
 void ofConsoleLoggerChannel::log(ofLogLevel level, const string & module, const char* format, va_list args){
 	//thanks stefan!
 	//http://www.ozzu.com/cpp-tutorials/tutorial-writing-custom-printf-wrapper-function-t89166.html
+#ifdef _WIN32 || _WIN64
+	HANDLE hConsole;
+	hConsole = GetStdHandle(level < OF_LOG_ERROR ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+	/*
+	bit 0 - foreground blue
+	bit 1 - foreground green
+	bit 2 - foreground red
+	bit 3 - foreground intensity
+
+	bit 4 - background blue
+	bit 5 - background green
+	bit 6 - background red
+	bit 7 - background intensity
+	*/
+	switch (level)
+	{
+	case OF_LOG_VERBOSE:
+		SetConsoleTextAttribute(hConsole, 15);
+		break;
+	case OF_LOG_NOTICE:
+		SetConsoleTextAttribute(hConsole, 11);
+		break;
+	case OF_LOG_WARNING:
+		SetConsoleTextAttribute(hConsole, 14);
+		break;
+	case OF_LOG_ERROR:
+		SetConsoleTextAttribute(hConsole, 12);
+		break;
+	case OF_LOG_FATAL_ERROR:
+		SetConsoleTextAttribute(hConsole, 192);
+		break;
+	case OF_LOG_SILENT:
+		break;
+	default:
+		break;
+	}
+#endif
+#ifdef __linux__ || TARGET_OS_MAC
+	switch (level)
+	{
+	case OF_LOG_VERBOSE:
+		cout << "\033[37m";
+		break;
+	case OF_LOG_NOTICE:
+		cout << "\033[36m";
+		break;
+	case OF_LOG_WARNING:
+		cout << "\033[33m";
+		break;
+	case OF_LOG_ERROR:
+		cout << "\033[31m";
+		break;
+	case OF_LOG_FATAL_ERROR:
+		cout << "\033[1m\033[31m";
+		break;
+	case OF_LOG_SILENT:
+		break;
+	default:
+		break;
+	}
+#endif
 	FILE* out = level < OF_LOG_ERROR ? stdout : stderr;
 	fprintf(out, "[%s] ", ofGetLogLevelName(level, true).c_str());
 	if(module != ""){
 		fprintf(out, "%s: ", module.c_str());
 	}
+#ifdef _WIN32 || _WIN64
+	SetConsoleTextAttribute(hConsole, 15);
+#endif
+#ifdef __linux__ || TARGET_OS_MAC
+	cout << "\033[0m";
+#endif
 	vfprintf(out, format, args);
 	fprintf(out, "\n");
 }
