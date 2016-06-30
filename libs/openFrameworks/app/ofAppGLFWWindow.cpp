@@ -48,6 +48,8 @@ ofAppGLFWWindow::ofAppGLFWWindow(){
 	windowP = nullptr;
 	windowW = 0;
 	windowH = 0;
+	currentW = 0;
+	currentH = 0;
 
 	glfwSetErrorCallback(error_cb);
 }
@@ -58,7 +60,15 @@ ofAppGLFWWindow::~ofAppGLFWWindow(){
 
 void ofAppGLFWWindow::close(){
 	if(windowP){
-		//hide the window before we destroy it stops a flicker on OS X on exit. 
+                glfwSetMouseButtonCallback(windowP, nullptr);
+                glfwSetCursorPosCallback(windowP, nullptr);
+                glfwSetCursorEnterCallback(windowP, nullptr);
+                glfwSetKeyCallback(windowP, nullptr);
+                glfwSetWindowSizeCallback(windowP, nullptr);
+                glfwSetWindowCloseCallback(windowP, nullptr);
+                glfwSetScrollCallback(windowP, nullptr);
+                glfwSetDropCallback(windowP, nullptr);
+		//hide the window before we destroy it stops a flicker on OS X on exit.
 		glfwHideWindow(windowP);
 		glfwDestroyWindow(windowP);
 		windowP = nullptr;
@@ -203,21 +213,24 @@ void ofAppGLFWWindow::setup(const ofGLFWWindowSettings & _settings){
 					glfwGetMonitorPos(monitors[settings.monitor],&x,&y);
 					settings.setPosition(ofVec2f(x,y));
 					setWindowPosition(settings.getPosition().x,settings.getPosition().y);
-					auto mode = glfwGetVideoMode(monitors[settings.monitor]);
-					settings.width = mode->width;
-					settings.height = mode->height;
-					//for OS X we need to set this first as the window size affects the window positon
-					setWindowShape(settings.width, settings.height);
+					#ifdef TARGET_OSX
+						//for OS X we need to set this first as the window size affects the window positon
+						auto mode = glfwGetVideoMode(monitors[settings.monitor]);
+						settings.width = mode->width;
+						settings.height = mode->height;
+						setWindowShape(settings.width, settings.height);
+					#endif
 					setWindowPosition(settings.getPosition().x,settings.getPosition().y);
 				}
 			}else{
 				setWindowPosition(settings.getPosition().x,settings.getPosition().y);
-				auto size = getScreenSize();
-				settings.width = size.x;
-				settings.height = size.y;
-				setWindowShape(settings.width, settings.height);
+				#ifdef TARGET_OSX
+					auto size = getScreenSize();
+					settings.width = size.x;
+					settings.height = size.y;
+					setWindowShape(settings.width, settings.height);
+				#endif
 			}
-			setFullscreen(true);
 		}else{
 			if (settings.isPositionSet()) {
 				setWindowPosition(settings.getPosition().x,settings.getPosition().y);
@@ -244,14 +257,15 @@ void ofAppGLFWWindow::setup(const ofGLFWWindowSettings & _settings){
 	//don't try and show a window if its been requsted to be hidden
 	bWindowNeedsShowing = settings.visible;
 
-    glfwSetWindowUserPointer(windowP,this);
-	windowMode = settings.windowMode;
+	glfwSetWindowUserPointer(windowP,this);
 
 	glfwGetWindowSize( windowP, &settings.width, &settings.height );
 
     glfwMakeContextCurrent(windowP);
 
-    glfwGetWindowSize(windowP, &windowW, &windowH );
+	glfwGetWindowSize(windowP, &currentW, &currentH );
+	windowW = settings.width;
+	windowH = settings.height;
 
     int framebufferW, framebufferH;
     glfwGetFramebufferSize(windowP, &framebufferW, &framebufferH);
@@ -349,6 +363,9 @@ void ofAppGLFWWindow::update(){
 	if( bWindowNeedsShowing && windowP ){
 		glfwShowWindow(windowP);
 		bWindowNeedsShowing = false;
+		if(settings.windowMode==OF_FULLSCREEN){
+			setFullscreen(true);
+		}
 	}
 }
 
@@ -398,6 +415,22 @@ void ofAppGLFWWindow::draw(){
 	nFramesSinceWindowResized++;
 }
 
+
+//--------------------------------------------
+void ofAppGLFWWindow::swapBuffers() {
+	glfwSwapBuffers(windowP);
+}
+
+//--------------------------------------------
+void ofAppGLFWWindow::startRender() {
+	renderer()->startRender();
+}
+
+//--------------------------------------------
+void ofAppGLFWWindow::finishRender() {
+	renderer()->finishRender();
+}
+
 //--------------------------------------------
 bool ofAppGLFWWindow::getWindowShouldClose(){
 	return glfwWindowShouldClose(windowP);
@@ -427,11 +460,10 @@ ofPoint ofAppGLFWWindow::getWindowSize(){
 		if(desktopMode){
 			return ofVec3f(desktopMode->width*pixelScreenCoordScale, desktopMode->height*pixelScreenCoordScale,0);
 		}else{
-			return ofPoint(windowW*pixelScreenCoordScale,windowH*pixelScreenCoordScale);
+			return ofPoint(currentW*pixelScreenCoordScale,currentH*pixelScreenCoordScale);
 		}
 	}else{
-	    glfwGetWindowSize(windowP,&windowW,&windowH);
-		return ofPoint(windowW*pixelScreenCoordScale,windowH*pixelScreenCoordScale);
+		return ofPoint(currentW*pixelScreenCoordScale,currentH*pixelScreenCoordScale);
 	}
 }
 
@@ -457,7 +489,7 @@ int ofAppGLFWWindow::getCurrentMonitor(){
 
 	int xW;	int yW;
 	glfwGetWindowPos(windowP, &xW, &yW);
-	
+
 	for (int iC=0; iC < numberOfMonitors; iC++){
 		int xM; int yM;
 		glfwGetMonitorPos(monitors[iC], &xM, &yM);
@@ -487,43 +519,27 @@ ofPoint ofAppGLFWWindow::getScreenSize(){
 			}else{
 				return ofVec3f(desktopMode->height*pixelScreenCoordScale, desktopMode->width*pixelScreenCoordScale, 0);
 			}
-		}else{
-			return ofPoint(0,0);
 		}
-	}else{
-		return ofPoint(0,0);
 	}
+
+	return {0.f, 0.f};
 }
 
 //------------------------------------------------------------
 int ofAppGLFWWindow::getWidth(){
-	if(windowMode == OF_GAME_MODE)
-	{
-		return getScreenSize().x;
+	if( orientation == OF_ORIENTATION_DEFAULT || orientation == OF_ORIENTATION_180 ){
+		return currentW * pixelScreenCoordScale;
+	}else{
+		return currentH * pixelScreenCoordScale;
 	}
-	else {
-		if( orientation == OF_ORIENTATION_DEFAULT || orientation == OF_ORIENTATION_180 ){
-			return windowW * pixelScreenCoordScale;
-		}else{
-			return windowH * pixelScreenCoordScale;
-		}
-	}
-
 }
 
 //------------------------------------------------------------
-int ofAppGLFWWindow::getHeight()
-{
-	if(windowMode == OF_GAME_MODE)
-	{
-		return getScreenSize().y;
-	}
-	else {
-		if( orientation == OF_ORIENTATION_DEFAULT || orientation == OF_ORIENTATION_180 ){
-			return windowH * pixelScreenCoordScale;
-		}else{
-			return windowW * pixelScreenCoordScale;
-		}
+int ofAppGLFWWindow::getHeight(){
+	if( orientation == OF_ORIENTATION_DEFAULT || orientation == OF_ORIENTATION_180 ){
+		return currentH * pixelScreenCoordScale;
+	}else{
+		return currentW * pixelScreenCoordScale;
 	}
 }
 
@@ -544,14 +560,21 @@ void ofAppGLFWWindow::setWindowPosition(int x, int y){
 
 //------------------------------------------------------------
 void ofAppGLFWWindow::setWindowShape(int w, int h){
+	if(windowMode == OF_WINDOW){
+		windowW = w;
+		windowH = h;
+	}
+	currentW = w/pixelScreenCoordScale;
+	currentH = h/pixelScreenCoordScale;
+	
 	#ifdef TARGET_OSX
 		ofPoint pos = getWindowPosition();
-		glfwSetWindowSize(windowP,w/pixelScreenCoordScale,h/pixelScreenCoordScale);
+		glfwSetWindowSize(windowP,currentW,currentH);
 		if( pos != getWindowPosition() ){
 			setWindowPosition(pos.x, pos.y);
 		}
 	#else
-		glfwSetWindowSize(windowP,w/pixelScreenCoordScale,h/pixelScreenCoordScale);
+		glfwSetWindowSize(windowP,currentW,currentH);
 	#endif
 }
 
@@ -580,80 +603,89 @@ void ofAppGLFWWindow::setFullscreen(bool fullscreen){
  
 	ofWindowMode curWindowMode = windowMode;
  
-  if (fullscreen){
+	if (fullscreen){
 		windowMode = OF_FULLSCREEN;
 	}else{
 		windowMode = OF_WINDOW;
     }
- 
+
     //we only want to change window mode if the requested window is different to the current one.
     bool bChanged = windowMode != curWindowMode;
     if( !bChanged ){
         return;
-    }
+	}
  
 #ifdef TARGET_LINUX
 #include <X11/Xatom.h>
  
     Window nativeWin = glfwGetX11Window(windowP);
 	Display* display = glfwGetX11Display();
-	int monitorCount;
-	GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
- 
-	if( settings.multiMonitorFullScreen && monitorCount > 1 ){
-		// find the monitors at the edges of the virtual desktop
-		int minx=numeric_limits<int>::max();
-		int miny=numeric_limits<int>::max();
-		int maxx=numeric_limits<int>::min();
-		int maxy=numeric_limits<int>::min();
-		int x,y,w,h;
-		int monitorLeft=0, monitorRight=0, monitorTop=0, monitorBottom=0;
-        for(int i = 0; i < monitorCount; i++){
-            glfwGetMonitorPos(monitors[i],&x,&y);
-            auto videoMode = glfwGetVideoMode(monitors[i]);
-            w = videoMode->width;
-            h = videoMode->height;
-            if(x<minx){
-            	monitorLeft = i;
-            	minx = x;
-            }
-            if(y<miny){
-            	monitorTop = i;
-            	miny = y;
-            }
-            if(x+w>maxx){
-            	monitorRight = i;
-            	maxx = x+w;
-            }
-            if(y+h>maxy){
-            	monitorBottom = i;
-            	maxy = y+h;
-            }
- 
-        }
- 
-        // send fullscreen_monitors event with the edges monitors
-		Atom m_net_fullscreen_monitors= XInternAtom(display, "_NET_WM_FULLSCREEN_MONITORS", false);
- 
-		XEvent xev;
- 
-		xev.xclient.type = ClientMessage;
-		xev.xclient.serial = 0;
-		xev.xclient.send_event = True;
-		xev.xclient.window = nativeWin;
-		xev.xclient.message_type = m_net_fullscreen_monitors;
-		xev.xclient.format = 32;
- 
-		xev.xclient.data.l[0] = monitorTop;
-		xev.xclient.data.l[1] = monitorBottom;
-		xev.xclient.data.l[2] = monitorLeft;
-		xev.xclient.data.l[3] = monitorRight;
-		xev.xclient.data.l[4] = 1;
-		XSendEvent(display, RootWindow(display, DefaultScreen(display)),
-				   False, SubstructureRedirectMask | SubstructureNotifyMask, &xev);
- 
+	if(windowMode==OF_FULLSCREEN){
+		int monitorCount;
+		GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+		if( settings.multiMonitorFullScreen && monitorCount > 1 ){
+			// find the monitors at the edges of the virtual desktop
+			int minx=numeric_limits<int>::max();
+			int miny=numeric_limits<int>::max();
+			int maxx=numeric_limits<int>::min();
+			int maxy=numeric_limits<int>::min();
+			int x,y,w,h;
+			int monitorLeft=0, monitorRight=0, monitorTop=0, monitorBottom=0;
+			for(int i = 0; i < monitorCount; i++){
+				glfwGetMonitorPos(monitors[i],&x,&y);
+				auto videoMode = glfwGetVideoMode(monitors[i]);
+				w = videoMode->width;
+				h = videoMode->height;
+				if(x<minx){
+					monitorLeft = i;
+					minx = x;
+				}
+				if(y<miny){
+					monitorTop = i;
+					miny = y;
+				}
+				if(x+w>maxx){
+					monitorRight = i;
+					maxx = x+w;
+				}
+				if(y+h>maxy){
+					monitorBottom = i;
+					maxy = y+h;
+				}
+			}
+
+			// send fullscreen_monitors event with the edges monitors
+			Atom m_net_fullscreen_monitors= XInternAtom(display, "_NET_WM_FULLSCREEN_MONITORS", false);
+
+			XEvent xev;
+
+			xev.xclient.type = ClientMessage;
+			xev.xclient.serial = 0;
+			xev.xclient.send_event = True;
+			xev.xclient.window = nativeWin;
+			xev.xclient.message_type = m_net_fullscreen_monitors;
+			xev.xclient.format = 32;
+
+			xev.xclient.data.l[0] = monitorTop;
+			xev.xclient.data.l[1] = monitorBottom;
+			xev.xclient.data.l[2] = monitorLeft;
+			xev.xclient.data.l[3] = monitorRight;
+			xev.xclient.data.l[4] = 1;
+			XSendEvent(display, RootWindow(display, DefaultScreen(display)),
+					   False, SubstructureRedirectMask | SubstructureNotifyMask, &xev);
+			currentW = maxx - minx;
+			currentH = maxy - minx;
+		}else{
+			auto monitor = glfwGetWindowMonitor(windowP);
+			if(monitor){
+				auto videoMode = glfwGetVideoMode(monitor);
+				if(videoMode){
+					currentW = videoMode->width;
+					currentH = videoMode->height;
+				}
+			}
+		}
 	}
- 
 	// send fullscreen event
 	Atom m_net_state= XInternAtom(display, "_NET_WM_STATE", false);
 	Atom m_net_fullscreen= XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", false);
@@ -686,6 +718,7 @@ void ofAppGLFWWindow::setFullscreen(bool fullscreen){
 	XChangeProperty(display, nativeWin, m_bypass_compositor, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)&value, 1);
  
 	XFlush(display);
+	setWindowShape(windowW, windowH);
  
 #elif defined(TARGET_OSX)
 	if( windowMode == OF_FULLSCREEN){
@@ -849,7 +882,9 @@ void ofAppGLFWWindow::setFullscreen(bool fullscreen){
  
         }
  
-        SetWindowPos(hwnd, HWND_TOPMOST, xpos, ypos, fullscreenW, fullscreenH, SWP_SHOWWINDOW);
+		SetWindowPos(hwnd, HWND_TOPMOST, xpos, ypos, fullscreenW, fullscreenH, SWP_SHOWWINDOW);
+		currentW = fullscreenW;
+		currentH = fullscreenH;
  
 	}else if( windowMode == OF_WINDOW ){
 		// set window shape if started in fullscreen
@@ -1146,10 +1181,13 @@ void ofAppGLFWWindow::keyboard_cb(GLFWwindow* windowP_, int keycode, int scancod
 //------------------------------------------------------------
 void ofAppGLFWWindow::resize_cb(GLFWwindow* windowP_,int w, int h) {
 	ofAppGLFWWindow * instance = setCurrent(windowP_);
-	instance->windowW = w * instance->pixelScreenCoordScale;
-	instance->windowH = h * instance->pixelScreenCoordScale;
+	if(instance->windowMode == OF_WINDOW){
+		instance->windowW = w * instance->pixelScreenCoordScale;
+		instance->windowH = h * instance->pixelScreenCoordScale;
+	}
+	instance->currentW = w;
+	instance->currentH = h;
 	instance->events().notifyWindowResized(w*instance->pixelScreenCoordScale, h*instance->pixelScreenCoordScale);
-
 	instance->nFramesSinceWindowResized = 0;
 }
 

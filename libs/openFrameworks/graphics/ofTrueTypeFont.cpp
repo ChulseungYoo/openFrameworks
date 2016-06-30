@@ -562,8 +562,11 @@ ofTrueTypeFont::ofTrueTypeFont(const ofTrueTypeFont& mom)
 	glyphBBox = mom.glyphBBox;
 	letterSpacing = mom.letterSpacing;
 	spaceSize = mom.spaceSize;
+	fontUnitScale = mom.fontUnitScale;
 
 	cps = mom.cps; // properties for each character
+	settings = mom.settings;
+	glyphIndexMap = mom.glyphIndexMap;
 	texAtlas = mom.texAtlas;
 	face = mom.face;
 }
@@ -577,8 +580,8 @@ ofTrueTypeFont & ofTrueTypeFont::operator=(const ofTrueTypeFont& mom){
 		ofAddListener(ofxAndroidEvents().reloadGL,this,&ofTrueTypeFont::reloadTextures);
 	}
 #endif
-	settings = mom.settings;
 	bLoadedOk = mom.bLoadedOk;
+
 	charOutlines = mom.charOutlines;
 	charOutlinesNonVFlipped = mom.charOutlinesNonVFlipped;
 	charOutlinesContour = mom.charOutlinesContour;
@@ -590,11 +593,14 @@ ofTrueTypeFont & ofTrueTypeFont::operator=(const ofTrueTypeFont& mom){
 	glyphBBox = mom.glyphBBox;
 	letterSpacing = mom.letterSpacing;
 	spaceSize = mom.spaceSize;
+	fontUnitScale = mom.fontUnitScale;
 
 	cps = mom.cps; // properties for each character
-
+	settings = mom.settings;
+	glyphIndexMap = mom.glyphIndexMap;
 	texAtlas = mom.texAtlas;
 	face = mom.face;
+
 	return *this;
 }
 
@@ -620,8 +626,11 @@ ofTrueTypeFont::ofTrueTypeFont(ofTrueTypeFont&& mom)
 	glyphBBox = mom.glyphBBox;
 	letterSpacing = mom.letterSpacing;
 	spaceSize = mom.spaceSize;
+	fontUnitScale = mom.fontUnitScale;
 
 	cps = mom.cps; // properties for each character
+	settings = mom.settings;
+	glyphIndexMap = std::move(mom.glyphIndexMap);
 	texAtlas = mom.texAtlas;
 	face = mom.face;
 }
@@ -635,7 +644,6 @@ ofTrueTypeFont & ofTrueTypeFont::operator=(ofTrueTypeFont&& mom){
 		ofAddListener(ofxAndroidEvents().reloadGL,this,&ofTrueTypeFont::reloadTextures);
 	}
 #endif
-	settings = mom.settings;
 	bLoadedOk = mom.bLoadedOk;
 
 	charOutlines = std::move(mom.charOutlines);
@@ -649,11 +657,13 @@ ofTrueTypeFont & ofTrueTypeFont::operator=(ofTrueTypeFont&& mom){
 	glyphBBox = mom.glyphBBox;
 	letterSpacing = mom.letterSpacing;
 	spaceSize = mom.spaceSize;
+	fontUnitScale = mom.fontUnitScale;
 
 	cps = mom.cps; // properties for each character
-
+	settings = mom.settings;
+	glyphIndexMap = std::move(mom.glyphIndexMap);
 	texAtlas = mom.texAtlas;
-	face = mom.face;
+
 	return *this;
 }
 
@@ -1098,14 +1108,9 @@ void ofTrueTypeFont::iterateString(const string & str, float x, float y, bool vF
 
 	int directionX = settings.direction == ofTtfSettings::LeftToRight?1:-1;
 
-	string str_valid;
-	utf8::replace_invalid(str.begin(),str.end(),back_inserter(str_valid));
-	utf8::iterator<const char*> it(&str_valid.front(), &str_valid.front(), (&str_valid.back())+1);
-	utf8::iterator<const char*> end((&str_valid.back())+1, &str_valid.front(), (&str_valid.back())+1);
 	uint32_t prevC = 0;
-	while(it != end){
+	for(auto c: ofUTF8Iterator(str)){
 		try{
-			auto c = *it;
 			if (c == '\n') {
 				pos.y += lineHeight*newLineDirection;
 				pos.x = x ; //reset X Pos back to zero
@@ -1122,7 +1127,6 @@ void ofTrueTypeFont::iterateString(const string & str, float x, float y, bool vF
 				pos.x += props.advance * letterSpacing * directionX;
 				prevC = c;
 			}
-			++it;
 		}catch(...){
 			break;
 		}
@@ -1196,18 +1200,23 @@ float ofTrueTypeFont::stringWidth(const std::string& c) const{
 //-----------------------------------------------------------
 ofRectangle ofTrueTypeFont::getStringBoundingBox(const std::string& c, float x, float y, bool vflip) const{
 	ofMesh mesh = getStringMesh(c,x,y,vflip);
-	ofRectangle bb(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),0,0);
-	float maxX = std::numeric_limits<float>::min();
-	float maxY = std::numeric_limits<float>::min();
+
+	if(mesh.getNumVertices() == 0)
+	    return ofRectangle(x,y,0,0);
+
+	float minX = std::numeric_limits<float>::max();
+	float minY = std::numeric_limits<float>::max();
+	float maxX = -std::numeric_limits<float>::max();
+	float maxY = -std::numeric_limits<float>::max();
 	for(const auto & v: mesh.getVertices()){
-		bb.x = min(v.x,bb.x);
-		bb.y = min(v.y,bb.y);
+		minX = min(v.x,minX);
+		minY = min(v.y,minY);
 		maxX = max(v.x,maxX);
 		maxY = max(v.y,maxY);
 	}
-	bb.width = maxX - bb.x;
-	bb.height = maxY - bb.y;
-	return bb;
+	float width = maxX - minX;
+	float height = maxY - minY;
+	return ofRectangle(minX, minY, width, height);
 }
 
 //-----------------------------------------------------------
@@ -1239,44 +1248,71 @@ const ofTexture & ofTrueTypeFont::getFontTexture() const{
 }
 
 //-----------------------------------------------------------
+ofVec2f ofTrueTypeFont::getFirstGlyphPosForTexture(const std::string & str, bool vflip) const{
+	if(!str.empty()){
+		try{
+			auto c = *ofUTF8Iterator(str).begin();
+			if(settings.direction == ofTtfSettings::LeftToRight){
+				if (c != '\n') {
+					auto g = loadGlyph(c);
+					return {-float(g.props.xmin), getLineHeight() + g.props.ymin + getDescenderHeight()};
+				}
+			}else{
+				int width = 0;
+				int lineWidth = 0;
+				iterateString(str, 0, 0, vflip, [&](uint32_t c, ofVec2f){
+					try{
+						if (c != '\n') {
+							auto g = loadGlyph(c);
+							lineWidth += g.props.advance * letterSpacing;
+							width = max(width, lineWidth);
+						}else{
+							lineWidth = 0;
+						}
+					}catch(...){
+					}
+				});
+				if (c != '\n') {
+					auto g = loadGlyph(c);
+					return {width - float(g.props.xmin), getLineHeight() + g.props.ymin + getDescenderHeight()};
+				}else{
+					return {float(width), 0.0};
+				}
+			}
+		}catch(...){}
+	}
+
+	return {0.f, 0.f};
+}
+
+//-----------------------------------------------------------
 ofTexture ofTrueTypeFont::getStringTexture(const std::string& str, bool vflip) const{
-	string str_valid;
-	utf8::replace_invalid(str.begin(),str.end(),back_inserter(str_valid));
 	vector<glyph> glyphs;
 	vector<ofVec2f> glyphPositions;
-	utf8::iterator<const char*> it(&str_valid.front(), &str_valid.front(), (&str_valid.back())+1);
-	utf8::iterator<const char*> end((&str_valid.back())+1, &str_valid.front(), (&str_valid.back())+1);
-	int	x = 0;
-	int	y = 0;
 	long height = 0;
-	uint32_t prevC = 0;
-	while(it != end){
+	int width = 0;
+	int lineWidth = 0;
+	iterateString(str, 0, 0, vflip, [&](uint32_t c, ofVec2f pos){
 		try{
-			auto c = *it;
-			if (c == '\n') {
-				y += lineHeight;
-				x = 0 ; //reset X Pos back to zero
-				prevC = 0;
-			} else {
-				glyphs.push_back(loadGlyph(c));
-				if(prevC>0){
-					x += getKerning(c,prevC);
-				}else if(settings.direction == ofTtfSettings::RightToLeft){
-					x += glyphs.back().props.width;
-				}
-				glyphPositions.emplace_back(static_cast<float>(x), static_cast<float>(y));
-				x += glyphs.back().props.advance * letterSpacing;
-				height = max(height, glyphs.back().props.ymax + y + long(getLineHeight()));
+			if (c != '\n') {
+				auto g = loadGlyph(c);
+				glyphs.push_back(g);
+				int x = pos.x + g.props.xmin;
+				int y = g.props.ymax + pos.y;
+				glyphPositions.emplace_back(x, y);
+				lineWidth += g.props.advance * letterSpacing;
+				width = max(width, lineWidth);
+				height = max(height, y + long(getLineHeight()));
+			}else{
+				lineWidth = 0;
 			}
-			++it;
-			prevC = c;
 		}catch(...){
-			break;
 		}
-	}
+	});
+
 	ofTexture tex;
 	ofPixels totalPixels;
-	totalPixels.allocate(x, height, OF_PIXELS_GRAY_ALPHA);
+	totalPixels.allocate(width, height, OF_PIXELS_GRAY_ALPHA);
 	//-------------------------------- clear data:
 	totalPixels.set(0,255); // every luminance pixel = 255
 	totalPixels.set(1,0);
@@ -1285,7 +1321,7 @@ ofTexture ofTrueTypeFont::getStringTexture(const std::string& str, bool vflip) c
 		if(settings.direction == ofTtfSettings::LeftToRight){
 			g.pixels.blendInto(totalPixels, glyphPositions[i].x, glyphPositions[i].y + getLineHeight() + g.props.ymin + getDescenderHeight() );
 		}else{
-			g.pixels.blendInto(totalPixels, x-glyphPositions[i].x, glyphPositions[i].y + getLineHeight() + g.props.ymin + getDescenderHeight() );
+			g.pixels.blendInto(totalPixels, width-glyphPositions[i].x, glyphPositions[i].y + getLineHeight() + g.props.ymin + getDescenderHeight() );
 		}
 		i++;
 		if(i==glyphPositions.size()){
