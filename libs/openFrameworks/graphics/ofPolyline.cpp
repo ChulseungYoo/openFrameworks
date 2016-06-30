@@ -15,13 +15,34 @@ ofPolyline::ofPolyline(const vector<ofPoint>& verts){
 }
 
 //----------------------------------------------------------
-ofPolyline ofPolyline::fromRectangle(const ofRectangle& rect) {
-    ofPolyline polyline;
-    polyline.addVertex(rect.getMin());
-    polyline.addVertex(rect.getMaxX(),rect.getMinY());
-    polyline.addVertex(rect.getMax());
-    polyline.addVertex(rect.getMinX(),rect.getMaxY());
-    polyline.close();
+ofPolyline ofPolyline::fromRectangle(const ofRectangle& rect, float roundedRadiusX, float roundedRadiusY) {
+	ofPolyline polyline;
+
+	if ((0 == roundedRadiusX) || (0 == roundedRadiusY))
+	{
+		polyline.addVertex(rect.getMin());
+		polyline.addVertex(rect.getMaxX(), rect.getMinY());
+		polyline.addVertex(rect.getMax());
+		polyline.addVertex(rect.getMinX(), rect.getMaxY());
+	}
+	else
+	{
+		float radiusX = roundedRadiusX;
+		float radiusY = roundedRadiusY;
+		if (rect.getWidth() < roundedRadiusX * 2)
+		{
+			radiusX = rect.getWidth() / 2.0;
+		}
+		if (rect.getHeight() < roundedRadiusY * 2)
+		{
+			radiusY = rect.getHeight() / 2.0;
+		}
+		polyline.arc(rect.getTopLeft() + ofPoint(radiusX, radiusY), radiusX, radiusY, 180, 270, (int)(radiusX + radiusY));
+		polyline.arc(rect.getTopRight() + ofPoint(-radiusX, radiusY), radiusX, radiusY, 270, 360, (int)(radiusX + radiusY));
+		polyline.arc(rect.getBottomRight() + ofPoint(-radiusX, -radiusY), radiusX, radiusY, 0, 90, (int)(radiusX + radiusY));
+		polyline.arc(rect.getBottomLeft() + ofPoint(radiusX, -radiusY), radiusX, radiusY, 90, 180, (int)(radiusX + radiusY));
+	}
+	polyline.close();
     return polyline;
 }
 
@@ -985,7 +1006,6 @@ void ofPolyline::updateCache(bool bForceUpdate) const {
         if(fabsf(area) < FLT_EPSILON) {
             centroid2D = getBoundingBox().getCenter();
         } else {
-            // centroid
             // TODO: doesn't seem to work on all concave shapes
             for(int i=0;i<(int)points.size()-1;i++){
                 centroid2D.x += (points[i].x + points[i+1].x) * (points[i].x*points[i+1].y - points[i+1].x*points[i].y);

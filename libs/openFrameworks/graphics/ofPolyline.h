@@ -60,7 +60,7 @@ public:
 	/// \brief Creates an ofPolyline from a vector of ofVec2f or ofPoint objects.
 	ofPolyline(const vector<ofPoint>& verts);
 
-    static ofPolyline fromRectangle(const ofRectangle& rect);
+    static ofPolyline fromRectangle(const ofRectangle& rect, float roundedRadiusX = 0, float roundedRadiusY = 0);
 	static ofPolyline fromCircle(const ofPoint center, float r, int resolution);
 
     /// \}
