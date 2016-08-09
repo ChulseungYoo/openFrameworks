@@ -37,8 +37,7 @@ void ofApp::drawGui(ofEventArgs & args){
 void ofApp::keyPressed(int key){
 	if (' ' == key)
 	{
-		isFullscreen = !isFullscreen;
-		ofSetFullscreen(isFullscreen);
+		popupWindow();
 	}
 }
 
@@ -89,5 +88,27 @@ void ofApp::gotMessage(ofMessage msg){
 
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
+
+}
+
+
+void ofApp::popupWindow()
+{
+	if (NULL == guiWindow)
+	{
+		ofGLFWWindowSettings settings;
+		settings.width = 300;
+		settings.height = 300;
+		settings.setPosition(ofVec2f(100, 100));
+		settings.resizable = false;
+
+		guiWindow = ofCreateWindow(settings);
+		guiWindow->setVerticalSync(false);
+		ofAddListener(guiWindow->events().draw, this, &ofApp::drawGui);
+	}
+	else if (guiWindow->getHeight() > 0)
+	{
+		
+	}
 
 }

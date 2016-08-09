@@ -24,10 +24,12 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
+		void popupWindow();
 		ofParameterGroup parameters;
 		ofParameter<float> radius;
 		ofParameter<ofColor> color;
 		ofxPanel gui;
+		shared_ptr<ofAppBaseWindow> guiWindow{ NULL };
 
 		bool isFullscreen{ false };
 };

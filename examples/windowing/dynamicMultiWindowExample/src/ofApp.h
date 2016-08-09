@@ -1,16 +1,14 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxGui.h"
+#include "GuiApp.h"
 
 class ofApp : public ofBaseApp{
 
 	public:
 		void setup();
-		void setupGui();
 		void update();
 		void draw();
-		void drawGui(ofEventArgs & args);
 
 		void keyPressed(int key);
 		void keyReleased(int key);
@@ -23,11 +21,8 @@ class ofApp : public ofBaseApp{
 		void windowResized(int w, int h);
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
+		
+		shared_ptr<GuiApp> gui;
 
-		ofParameterGroup parameters;
-		ofParameter<float> radius;
-		ofParameter<ofColor> color;
-		ofxPanel gui;
-
-		bool isFullscreen{ false };
+		void popupWindow();
 };

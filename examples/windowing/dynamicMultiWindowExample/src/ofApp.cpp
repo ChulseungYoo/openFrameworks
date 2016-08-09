@@ -4,15 +4,7 @@
 void ofApp::setup(){
 	ofBackground(255);
 	ofSetCircleResolution(200);
-}
-
-//--------------------------------------------------------------
-void ofApp::setupGui(){
-	parameters.setName("parameters");
-	parameters.add(radius.set("radius",50,1,100));
-	parameters.add(color.set("color",100,ofColor(0,0),255));
-	gui.setup(parameters);
-	ofSetBackgroundColor(0);
+	ofSetFullscreen(true);
 }
 
 //--------------------------------------------------------------
@@ -22,23 +14,22 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-	ofSetColor(color);
-	ofDrawCircle(ofGetWidth()*0.5,ofGetWidth()*0.5,radius);
-	ofSetColor(0);
-	ofDrawBitmapString(ofGetFrameRate(),20,20);
-}
-
-//--------------------------------------------------------------
-void ofApp::drawGui(ofEventArgs & args){
-	gui.draw();
+	if (gui != NULL)
+	{
+		ofSetColor(0);
+		ofDrawBitmapString(ofGetFrameRate(), 20, 20);
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	if (' ' == key)
+	if ('f' == key)
 	{
-		isFullscreen = !isFullscreen;
-		ofSetFullscreen(isFullscreen);
+		ofToggleFullscreen();
+	}
+	else if (' ' == key)
+	{
+		popupWindow();
 	}
 }
 
@@ -90,4 +81,28 @@ void ofApp::gotMessage(ofMessage msg){
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
 
+}
+
+
+void ofApp::popupWindow()
+{
+	if (NULL == gui)
+	{
+		ofGLFWWindowSettings settings;
+		settings.width = 300;
+		settings.height = 300;
+		settings.setPosition(ofVec2f(-200, 100));
+		settings.resizable = false;
+		shared_ptr<ofAppBaseWindow> guiWindow = ofCreateWindow(settings);
+		shared_ptr<GuiApp> guiApp(new GuiApp);
+
+		gui = guiApp;
+		gui->onExit = [this]() {
+			cout << "lambda function called" << endl;
+			gui.~shared_ptr();
+			gui = NULL;
+
+		};
+		ofRunApp(guiWindow, guiApp);
+	}
 }
