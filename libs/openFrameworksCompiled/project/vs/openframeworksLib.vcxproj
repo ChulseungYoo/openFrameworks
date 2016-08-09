@@ -69,6 +69,7 @@
     <OutDir>..\..\lib\vs\$(Platform)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_debug</TargetName>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>..\..\lib\vs\$(Platform)\</OutDir>

@@ -128,6 +128,15 @@ ofPolyline ofPolyline::operator* (float scale) {
 	return retVal;
 }
 
+ofPolyline ofPolyline::translate(ofPoint offset)
+{
+	ofPolyline retVal;
+	for (auto vertex : getVertices())
+	{
+		retVal.addVertex(vertex + offset);
+	}
+	return retVal;
+}
 //----------------------------------------------------------
 void ofPolyline::resize(size_t size){
 	points.resize(size);

@@ -260,7 +260,7 @@ void ofSystemAlertDialog(string errorMessage){
 		// http://www.cplusplus.com/reference/clibrary/cstdlib/mbstowcs/
 		mbstowcs(widearray, errorMessage.c_str(), length);
 		// launch the alert:
-		MessageBoxW(nullptr, widearray, L"alert", MB_OK);
+		MessageBoxW(nullptr, widearray, L"alert", MB_DEFAULT_DESKTOP_ONLY);
 		// clear the allocated memory:
 		delete widearray;
 	#endif

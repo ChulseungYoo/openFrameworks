@@ -130,6 +130,7 @@ public:
 	const ofPoint& operator[] (int index) const;
 	ofPoint& operator[] (int index);
 	ofPolyline operator* (float scale);
+	ofPolyline translate (ofPoint offset);
 	/// \brief Gets a vector of vertices that the line contains
 	vector<ofPoint> & getVertices();
 	const vector<ofPoint> & getVertices() const;
