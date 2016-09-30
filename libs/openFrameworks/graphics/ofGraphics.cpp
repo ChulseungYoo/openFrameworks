@@ -1015,7 +1015,7 @@ void ofVertex(float x, float y, float z){
 }
 
 //---------------------------------------------------
-void ofVertex(ofPoint & p){
+void ofVertex(const ofPoint & p){
 	ofGetCurrentRenderer()->getPath().lineTo(p);
 }
 

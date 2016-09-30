@@ -545,7 +545,7 @@ void ofBeginShape();
 /// ofEndShape().
 void ofVertex(float x, float y);
 void ofVertex(float x, float y, float z);
-void ofVertex(ofPoint & p);
+void ofVertex(const ofPoint & p);
 void ofVertices(const vector <ofPoint> & polyPoints);
 
 /// \brief Specifies a single point of a shape. The difference from ofVertex is that
